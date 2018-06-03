@@ -21,7 +21,9 @@ Page({
     nowTemp: '',
     nowWeather: '',
     nowWeatherBackground: "",
-    hourlyWeather: []
+    hourlyWeather: [],
+    todayTemp: "",
+    todayDate: ""
   },
   onLoad() {
     this.getNow()
@@ -41,6 +43,7 @@ Page({
         let result = res.data.result
         this.setNow(result)
         this.setHourlyWeather(result)
+        this.setToday(result)
       },
       complete: () => {
         callback && callback()
@@ -64,7 +67,7 @@ Page({
     let forecast = result.forecast
     let hourlyWeather = []
     let nowHour = new Date().getHours()
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 8; i += 1) {
       hourlyWeather.push({
         time: (i * 3 + nowHour) % 24 + "时",
         iconPath: '/images/' + forecast[i].weather + '-icon.png',
@@ -74,6 +77,18 @@ Page({
     hourlyWeather[0].time = '现在'
     this.setData({
       hourlyWeather: hourlyWeather
+    })
+  },
+  setToday(result) {
+    let date = new Date()
+    this.setData({
+      todayTemp: `${result.today.minTemp}° - ${result.today.maxTemp}°`,
+      todayDate: `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} 今天`
+    })
+  },
+  onTapDayWeather() {
+    wx.navigateTo({
+      url: '/pages/list/list',
     })
   }
 })
