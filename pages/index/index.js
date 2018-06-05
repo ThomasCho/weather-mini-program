@@ -18,6 +18,10 @@ const weatherColorMap = {
 
 const QQMapWX = require('../../libs/qqmap-wx-jssdk.js')
 
+const UNPROMPTED = 0
+const UNAUTHORIZED = 1
+const AUTHORIZED = 2
+
 Page({
   data: {
     nowTemp: '',
@@ -27,19 +31,39 @@ Page({
     todayTemp: "",
     todayDate: "",
     city: '广州市',
-    locationTipsText: "点击获取当前位置"
+    locationAuthType: UNPROMPTED
   },
   onLoad() {
     this.qqmapsdk = new QQMapWX({
       key: 'EAXBZ-33R3X-AA64F-7FIPQ-BY27J-5UF5B'
     })
-    this.getNow()
+
+    // 一开始就判断权限
+    wx.getSetting({
+      success: res => {
+        let auth = res.authSetting['scope.userLocation']
+        this.setData({
+            locationAuthType: auth ? AUTHORIZED
+              : (auth === false) ? UNAUTHORIZED : UNPROMPTED
+        })
+
+        if (auth)
+          this.getCityAndWeather()  //批准权限，获取真实城市和天气
+        else
+          this.getNow() //点击不批准，使用默认城市广州
+      },
+      fail: () => {
+        this.getNow() //点击取消，使用默认城市广州
+      }
+    })
   },
   onPullDownRefresh() {
     this.getNow(() => {
       wx.stopPullDownRefresh()
     })
   },
+
+  // 获取当前城市的天气
   getNow(callback) {
     wx.request({
       url: 'https://test-miniprogram.com/api/weather/now',
@@ -95,12 +119,29 @@ Page({
   },
   onTapDayWeather() {
     wx.navigateTo({
-      url: '/pages/list/list',
+      url: '/pages/list/list?city=' + this.data.city,
     })
   },
   onTapLocation() {
+    if (this.data.locationAuthType === UNAUTHORIZED)
+      wx.openSetting({
+        success: res => {
+          if (res.authSetting['scope.userLocation']) {
+            this.getCityAndWeather()
+          }
+        }
+      })
+    else
+      this.getCityAndWeather()
+  },
+
+  // 主要是获取当前城市，获取天气交由getNow()做
+  getCityAndWeather() {
     wx.getLocation({
       success: res => {
+        this.setData({
+          locationAuthType: AUTHORIZED
+        })
         this.qqmapsdk.reverseGeocoder({
           location: {
             latitude: res.latitude,
@@ -110,12 +151,16 @@ Page({
             let city = res.result.address_component.city
             this.setData({
               city: city,
-              locationTipsText: ""
             })
             this.getNow()
           }
         })
       },
+      fail: () => {
+        this.setData({
+          locationAuthType: UNAUTHORIZED
+        })
+      }
     })
   }
 })
